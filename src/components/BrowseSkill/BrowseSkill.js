@@ -79,6 +79,8 @@ export default class BrowseSkill extends React.Component {
   }
 
   componentDidMount() {
+    this.setState({ skillsLoaded: false });
+
     document.title = 'SUSI.AI - Browse Skills';
     this.loadLanguages();
     this.loadGroups();
@@ -181,14 +183,13 @@ export default class BrowseSkill extends React.Component {
 
   handleNavigationBackward = () => {
     $('html, body').animate({ scrollTop: 0 }, 'fast');
-    const { listPage, listOffset, entriesPerPage, skills } = this.state;
-    const newListPage = listPage - 1;
-    const newListOffset = listOffset - entriesPerPage;
-    this.setState({
-      listPage: newListPage,
-      listOffset: newListOffset,
-      listSkills: skills.slice(listOffset, listOffset),
-    });
+    const { listOffset, entriesPerPage, skills } = this.state;
+    let newlistOffset = listOffset - entriesPerPage;
+    this.setState(prevState => ({
+      listPage: prevState.listPage - 1,
+      listOffset: prevState.listOffset - prevState.entriesPerPage,
+      listSkills: skills.slice(newlistOffset, prevState.listOffset),
+    }));
   };
 
   handleShowSkills = ({ reviewed, staffPicks }) => {
@@ -338,7 +339,7 @@ export default class BrowseSkill extends React.Component {
   };
 
   loadCards = () => {
-    const { routeType, routeValue, routeTitle } = this.props;
+    const { routeType, routeValue, routeTitle, openSnackbar } = this.props;
     const {
       languageValue,
       filter,
@@ -430,13 +431,21 @@ export default class BrowseSkill extends React.Component {
       },
       error: e => {
         console.log('Error while fetching skills', e);
-        return this.loadCards();
+        if (!navigator.onLine) {
+          openSnackbar('You are offline!', 5000);
+          this.setState({
+            skillsLoaded: true,
+          });
+        } else {
+          return this.loadCards();
+        }
       },
     });
   };
 
   loadMetricsSkills = () => {
     const { languageValue } = this.state;
+    const { openSnackbar } = this.props;
     let url;
     url =
       urls.API_URL + '/cms/getSkillMetricsData.json?language=' + languageValue;
@@ -459,7 +468,14 @@ export default class BrowseSkill extends React.Component {
       },
       error: e => {
         console.log('Error while fetching skills based on top metrics', e);
-        return this.loadMetricsSkills();
+        if (!navigator.onLine) {
+          openSnackbar('You are offline!', 5000);
+          this.setState({
+            skillsLoaded: true,
+          });
+        } else {
+          return this.loadMetricsSkills();
+        }
       },
     });
   };
@@ -659,7 +675,6 @@ export default class BrowseSkill extends React.Component {
           zDepth={1}
           toggleDrawer={this.handleDrawerToggle}
         />
-
         <div style={styles.main}>
           <div style={styles.sidebar}>
             <div style={styles.newSkillBtn}>
@@ -1403,4 +1418,5 @@ BrowseSkill.propTypes = {
   routeType: PropTypes.string,
   routeValue: PropTypes.string,
   routeTitle: PropTypes.string,
+  openSnackbar: PropTypes.func,
 };
